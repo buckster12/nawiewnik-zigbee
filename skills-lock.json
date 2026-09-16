@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "esp32-development": {
+      "source": "magnus919/agent-skills",
+      "sourceType": "github",
+      "skillPath": "esp32-development/SKILL.md",
+      "computedHash": "806545906895acea2a9cd16f8af85010ec8327cecff39ffc8744ae185c953549"
+    },
+    "systematic-debugging": {
+      "source": "magnus919/agent-skills",
+      "sourceType": "github",
+      "skillPath": "systematic-debugging/SKILL.md",
+      "computedHash": "f8a13a8f55e647970cc3b7c5efd773cf216d7147b45bc472bf689cf5f10f7ce5"
+    }
+  }
+}

@@ -17,3 +17,6 @@ sdkconfig.old
 RECOVERY_STATUS.md
 tools/ha_terminal.py
 .DS_Store
+
+# Personal Claude Code permissions; not shared
+.claude/settings.local.json

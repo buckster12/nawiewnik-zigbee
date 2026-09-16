@@ -11,22 +11,25 @@ added: 2026-09-16
 `portMAX_DELAY` there is no timeout: if the Zigbee task holds that lock, stepping stops for as long
 as it holds it.
 
-Observed 2026-09-16 while instrumenting the reporting bug. Extra work added inside that critical
-section stopped the damper after two steps mid-travel. The failure was completely silent — no error,
-no `Target reached`, and the board stayed alive and responsive (uptime kept climbing and a later
-`stop_cover` was logged normally from the Zigbee task). Reverting and reflashing the committed
-firmware restored full movement in the same conditions: 52 position steps and
-`Target reached: steps=512 lift=50%`.
+CORRECTION 2026-09-16, same day: this item was filed on a bad premise and most of its original
+evidence belongs to [[brownout-reset-on-motor-start]]. Every other "the motor stalled after two
+steps" observation that day turned out to be the board resetting, not a task blocking.
+
+What survives is one observation that the reset explanation does NOT fit: with instrumentation added
+inside the critical section, the damper stopped after two steps while the uptime kept climbing
+(24164 -> 73379 ms with no reboot) and a later `stop_cover` was logged normally from the Zigbee task.
+A reset would have restarted the uptime. So something stopped the motor task alone while the rest of
+the firmware stayed live — which is what the mechanism above would look like — but it is a single
+unreproduced sighting made while the board was also brown-out prone.
 
 Consequence if it ever happens in the field: the damper parks at an arbitrary position, the
 persisted position is never written (that write is in the same loop, after motion ends), and nothing
 reports a fault. The stored position then disagrees with the physical one until the next boot homing.
 
-`later` because the trigger is not established, not because the risk is unclear. It only reproduced
-with artificial work added inside the section; in the committed firmware the lock is held for two
-attribute writes and is presumably short. What would settle it: whether the Zigbee task ever holds
-that lock long enough to matter — during commissioning retries, a rejoin, or a parent-link failure,
-all of which do hold it and all of which happen while a move may be in flight.
+`later` because the evidence for it is now one sighting, not because the risk is unclear. What would
+settle it: re-run the instrumented build AFTER the power problem is fixed, so a stalled motor can no
+longer be confused with a reset, and check whether the uptime-keeps-climbing stall reproduces. If it
+does not, delete this item rather than carrying it.
 
 If it turns out to matter, the shape of the fix is a bounded `esp_zigbee_lock_acquire` with the
 position update skipped on timeout: a dropped intermediate report costs nothing, since the final

@@ -12,6 +12,7 @@ bool motor_driver_set_lift_percentage(uint8_t lift_percentage);
 void motor_driver_open(void);
 void motor_driver_close(void);
 void motor_driver_stop(void);
+void motor_driver_home_open(void);
 void motor_driver_mark_closed(void);
 bool motor_driver_is_calibrated(void);
 uint8_t motor_driver_get_lift_percentage(void);

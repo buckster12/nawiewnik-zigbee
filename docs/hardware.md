@@ -34,6 +34,7 @@ is a constant-power load, so a sagging input makes it draw more input current, w
 |---|---:|---|---|
 | Cell | 3.0-4.2 V | TPS61023, sense divider | 3842 mV idle (old cell), 3975 mV idle (new), **3476 mV during a move** |
 | 5 V boost output | 5 V | ESP32-H2-Zero, ULN2003AN | UNKNOWN — not measured under load |
+| Positive leg, holder+ to converter VIN | — | (wiring loss) | **10-11 mV idle, 260 mV during a move** |
 | 3V3 | 3.3 V | ESP32-H2 | UNKNOWN |
 
 The ~370 mV sag at an estimated 0.22-0.30 A implies roughly 1.5 ohm of series resistance, an order
@@ -49,6 +50,19 @@ estimates agreeing is the strongest evidence here that the diagnosis is right.
 
 So the spring holder is one contact among ten, not the main suspect. Earlier notes in this file and
 in the backlog over-weighted it.
+
+**Measured 2026-09-16 and it settles the question.** Probing along the POSITIVE leg alone — holder
+plus terminal to converter `VIN`, both probes on the same conductor — reads 10-11 mV at idle and
+**260 mV while the motor runs**. That single wire, excluding the ground return and excluding the
+cell's own internal resistance, drops a quarter of a volt. At the estimated 0.25 A that is about
+1 ohm in one leg, against a sane budget of under 0.05 ohm, so roughly twenty times over.
+
+The idle figure is independently damning: at the 40-50 mA the board draws with the motor stopped,
+10 mV already implies ~0.2 ohm.
+
+This is what collapses the rail. The converter sees a quarter volt less than the cell provides, and
+being a constant-power load it answers a lower input by drawing more current, which increases the
+drop across this very wire.
 
 Note the sense divider returns to the cell's minus while the ADC measures against the MCU's ground.
 If motor return current shares a ground path with resistance, part of the apparent sag is a ground

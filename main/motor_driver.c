@@ -32,8 +32,6 @@
 #define MOTOR_MIN_SPEED_STEPS_PER_SECOND 10
 #define MOTOR_MAX_SPEED_STEPS_PER_SECOND 200
 #define MOTOR_NVS_NAMESPACE "naw_motor"
-#define BOOT_HOMING_RECOVERY_KEY "home_fix"
-#define BOOT_HOMING_RECOVERY_VERSION 1
 
 static const char *TAG = "motor";
 static const gpio_num_t s_pins[4] = {MOTOR_PIN_A, MOTOR_PIN_B, MOTOR_PIN_C, MOTOR_PIN_D};
@@ -257,24 +255,11 @@ esp_err_t motor_driver_init(motor_position_callback_t callback)
     s_speed_steps_per_second = speed;
     motor_model_restore(&s_motor, position, calibrated == 1);
 
-    uint8_t boot_homing_recovery = 0;
-    (void)nvs_get_u8(s_nvs, BOOT_HOMING_RECOVERY_KEY, &boot_homing_recovery);
-    if (boot_homing_recovery < BOOT_HOMING_RECOVERY_VERSION && calibrated == 0 &&
-        position == travel) {
-        /* Older firmware unconditionally homed on every boot. If its bounded
-         * OPEN homing failed after starting from the saved OPEN endpoint, it
-         * preserved position==travel but cleared only the calibrated flag. */
-        motor_model_mark_open(&s_motor);
-        motor_save_position(s_motor.current_steps, true);
-        ESP_ERROR_CHECK(nvs_set_u8(s_nvs, BOOT_HOMING_RECOVERY_KEY,
-                                   BOOT_HOMING_RECOVERY_VERSION));
-        ESP_ERROR_CHECK(nvs_commit(s_nvs));
-        ESP_LOGW(TAG, "Recovered OPEN calibration after legacy boot-homing failure");
-    }
-
     ESP_RETURN_ON_ERROR(esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "motor",
                                            &s_no_light_sleep_lock),
                         TAG, "Motor sleep lock creation failed");
+
+    motor_driver_home_open();
 
     BaseType_t created = xTaskCreate(motor_task, "motor", 3072, NULL, 6, &s_task);
     ESP_RETURN_ON_FALSE(created == pdPASS, ESP_ERR_NO_MEM, TAG, "task creation failed");

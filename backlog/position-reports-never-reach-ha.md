@@ -1,25 +1,53 @@
 ---
 worth: yes
+where: main/main.c:122
 added: 2026-09-16
 ---
-# reported lift position never reaches Home Assistant
+# Home Assistant shows the commanded position, never the reported one
 
-The motor moves on command but HA's `current_position` does not follow. Observed 2026-09-16: a
-`set_cover_position` to 50 landed (`Window command=0x05 payload=50 result=0x00`, HA position 50 at
-09:52:44), then a close command ran the motor from 51% upward while HA stayed at 50 and never
-updated again. The same split showed over the previous ~20 hours — `sensor.nawiewnik_battery` kept
-updating hourly while `cover.nawiewnik` had not changed since a HA restart the day before.
+HA's `current_position` only ever echoes the last commanded value; the device's own position never
+arrives. Proven on hardware 2026-09-16 by picking a command that carries no percentage, so an echo
+is impossible:
 
-The asymmetry points at the mechanism. Battery is pushed with an explicit
-`ezb_zcl_report_attr_cmd_req` addressed to the coordinator, and it arrives. Position relies on the
-stack's automatic configured reporting (`main/main.c:122` only sets the attribute value), and it does
-not. So either Z2M never completed reporting configuration / binding for the Window Covering
-cluster despite `configureReporting: true` in `zigbee2mqtt/nawiewnik-h2.mjs:13`, or the device side
-never had it configured.
+- `cover.set_cover_position` to 40 -> HA showed 40 at 10:24:41 immediately.
+- `cover.open_cover` -> `Window command=0x00 payload=0 result=0x00`, motor ran the full travel, and
+  HA still showed 40 from 10:24:41 afterwards.
 
-No `where` on purpose: whether this is a firmware bug or a converter/binding one is exactly the
-unresolved part. Deliberately not "fixed" by adding a second explicit report — that path is banned
-by `tests/test_report_frame_control.py`, which asserts exactly one report command exists, because
-duplicating the stack's own report delivered positions out of order.
+That also explains the earlier confusion: every HA position change so far had been an echo, and the
+day-long "stale" stretch was simply a period with no positional commands.
 
-Next step is evidence, not a patch: read the device's reporting configuration and bindings from Z2M.
+The firmware side looks correct, which is what makes this hard. On the live device
+`ezb_zcl_reporting_info_find()` reports `reporting[lift_percentage] = CONFIGURED`, and
+`ezb_zcl_set_attr_value()` for the attribute returns `0x0`. Calling
+`ezb_zcl_reporting_start_attr_report()` on that handle explicitly changed nothing.
+
+Deliberately NOT "fixed" by adding an explicit report next to the attribute write:
+`tests/test_report_frame_control.py` asserts exactly one `ezb_zcl_report_attr_cmd_t` exists and that
+`report_lift_percentage` contains no `ezb_zcl_report_attr_cmd_req`, because duplicating the stack's
+own report delivered positions out of order.
+
+The Z2M side was checked and is correct. Read over MQTT (subscribe through Home Assistant's
+websocket `mqtt/subscribe`, so no broker password is needed), `bridge/devices` gives for endpoint 10:
+
+```
+bindings: closuresWindowCovering -> 0x00124b002c3ad04a      # the coordinator
+configured_reportings:
+  closuresWindowCovering.currentPositionLiftPercentage  min=1 max=65000 delta=1
+```
+
+Binding present, reporting configured, delta 1 with a 1 s minimum. Nothing to fix there.
+
+The radio link is fine too, which rules out the obvious excuse. Watching `zigbee2mqtt/Nawiewnik`
+through a commanded move, Z2M keeps receiving traffic from the device — `linkquality` moves between
+72 and 93 and `battery` ticked 54 -> 55 — while `position` never changes from the value that was
+last commanded.
+
+So both ends are configured correctly, the device is reachable, `ezb_zcl_set_attr_value()` returns
+`0x0`, `ezb_zcl_reporting_info_find()` finds the info, and the report still never goes out. That
+points at the firmware never actually emitting it: `main.c` makes no call into the reporting API at
+all, and writing the attribute value alone is evidently not enough to trigger one. An explicit
+`ezb_zcl_reporting_start_attr_report()` on the found handle changed nothing, though its return code
+was not captured and is worth confirming before drawing a conclusion from it.
+
+Not the same defect as [[battery-voltage-report-rejected]]: that one fails loudly with an error code
+once instrumented, this one reports success at every step and still does not arrive.

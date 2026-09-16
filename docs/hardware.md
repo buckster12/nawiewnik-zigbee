@@ -11,6 +11,8 @@ guesses to be filled in later by inference — they need a measurement or a look
 | Board | Waveshare **ESP32-H2-Zero** (not the DevKitM-1 the `platformio.ini` board id names) |
 | SoC | ESP32-H2, RISC-V, native USB-Serial/JTAG |
 | Power source | Single 18650 cell in a **spring holder** |
+| Construction | **Solderless breadboard with dupont jumpers — nothing soldered** |
+| Charging | No charger on board; the only USB-C goes to the ESP32-H2-Zero, so the cell is charged externally |
 | USB | USB-C, connected during bench work; whether it feeds the same 5 V net is UNKNOWN |
 
 ## Power chain
@@ -37,6 +39,16 @@ is a constant-power load, so a sagging input makes it draw more input current, w
 The ~370 mV sag at an estimated 0.22-0.30 A implies roughly 1.5 ohm of series resistance, an order
 of magnitude above a healthy cell plus wiring. The current is an estimate from the 28BYJ-48's
 typical ~50 ohm per phase, **not measured**.
+
+The whole circuit is on a solderless breadboard, which accounts for that number without needing a
+faulty part anywhere. The cell-to-converter path crosses roughly eight to ten contacts — holder
+spring, wire, dupont pin, breadboard clip, rail, clip, pin, wire — and dupont-to-header contacts run
+10-100 mohm each while breadboard clips run 50-500 mohm, worse in a well-used hole. Eight contacts
+averaging 150 mohm is ~1.2 ohm, which lands on the 1.5 ohm the voltage sag implies. Two independent
+estimates agreeing is the strongest evidence here that the diagnosis is right.
+
+So the spring holder is one contact among ten, not the main suspect. Earlier notes in this file and
+in the backlog over-weighted it.
 
 Note the sense divider returns to the cell's minus while the ADC measures against the MCU's ground.
 If motor return current shares a ground path with resistance, part of the apparent sag is a ground
@@ -83,3 +95,16 @@ changed.
    side.
 4. **Actual motor current**, in series with the cell during a move. It replaces the estimate this
    whole analysis rests on.
+
+## The cheap fix, before any rework
+
+Take only the CURRENT path off the breadboard: cell to converter input, converter output to the
+ULN2003, and the common negative between cell, converter, ULN2003 and board. Those three links carry
+the motor current. Everything else — four phase signals, the reed, the divider midpoint — draws
+microamps to milliamps and can stay on the breadboard indefinitely.
+
+Route the common negative as a star from one point rather than transiting the breadboard rail, since
+motor return current sharing those clips is what lifts the board's ground and skews the ADC reading.
+
+Nothing needs soldering to the cell, and the cell stays swappable, which matters because there is no
+on-board charger.

@@ -74,9 +74,9 @@ the 3838-3842 mV (51-53%) in `backlog/brownout-reset-on-motor-start.md` — is n
 Which of the three figures in the rail table were taken with a multimeter rather than read from the
 firmware is not recorded.
 
-The measured ratio is ~8% below the nominal one, so the fixed firmware will still read low (2.8 V on
-the pin computes to ~3.69 V for a 3.99 V cell). Either the parts are off nominal or the meter loads
-the divider; measuring each resistor out of the breadboard would settle it before adding a correction.
+The meter's 2.8 V read ~8% below the nominal ratio, but that was the meter loading a 300k node, not
+the parts: on first boot of the fixed firmware the same cell read `pin=3007 mV battery=3959 mV`
+against the meter's 3.99 V, under 1% apart. No correction factor is needed.
 
 Note the sense divider returns to the cell's minus while the ADC measures against the MCU's ground.
 If motor return current shares a ground path with resistance, part of the apparent sag is a ground

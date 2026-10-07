@@ -15,9 +15,11 @@ W (2871) nawiewnik: Zigbee initialization failed: 0x03      <- uptime restarts f
 ```
 
 The USB-Serial/JTAG device disappears from the host at the same instant, which is the chip dying
-rather than a task stalling. `CONFIG_ESP_BROWNOUT_DET=y` is enabled and the cell measured
-3838-3842 mV (51-53%) across the attempts, so the inrush through the 5 V converter feeding the
-ULN2003 is pulling the rail under the detector threshold.
+rather than a task stalling. `CONFIG_ESP_BROWNOUT_DET=y` is enabled and the firmware reported
+3838-3842 mV (51-53%) across the attempts — but that reading was the saturated ADC ceiling, not the
+cell (the divider was inverted relative to the firmware; see `docs/hardware.md`), so the cell's real
+charge during these resets is unknown. The diagnosis does not depend on it: the inrush through the
+5 V converter feeding the ULN2003 is pulling the rail under the detector threshold.
 
 Confirmed physically by the owner watching the damper: it twitches a little toward closed, freezes,
 then travels back to the magnet — that last leg being `motor_driver_home_open()` running on the

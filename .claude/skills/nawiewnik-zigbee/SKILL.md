@@ -25,7 +25,7 @@ these assignments are H2-specific and verified against `main/motor_driver.c` and
 | 10–13 | ULN2003 stepper phases A–D |
 | 3 | 5 V motor rail enable |
 | 2 | Reed/hall endstop, **active-low**, internal pull-up |
-| 4 | Battery ADC (ADC1 ch3), 300k/95k divider, 2.5 dB atten |
+| 4 | Battery ADC (ADC1 ch3), 95k top / 300k bottom divider, 12 dB atten (measured 2026-10-07; older docs had it inverted) |
 | 8 | WS2812 status LED — blinks only to confirm calibration |
 | 9 | BOOT button: hold 3 s to mark current position CLOSED; also a sleep wakeup source |
 
@@ -133,6 +133,7 @@ reformatting will fail them even when behavior is identical.
 | `test_motor_power_sequence.py` | rail enable/disable ordering, startup delay, rail off at init |
 | `test_sleep_configuration.py` | sdkconfig sleep keys, console keys, `light_sleep_enable = false` |
 | `test_report_frame_control.py` | exactly one report command, its address/frame control, hourly interval |
+| `test_battery_divider.py` | 12 dB attenuation and the as-wired 95k/300k divider in the real conversion expression |
 | `test_zigbee_rejoin_recovery.py` | recovery signals, marker versioning, reset-before-retry order |
 
 When a change is deliberate, update the assertion **and** keep the comment explaining why the
@@ -143,7 +144,7 @@ a board.
 ## Verify
 
 ```sh
-bash tests/run_tests.sh                        # host C tests + 4 of the 5 Python tests
+bash tests/run_tests.sh                        # host C tests + 5 of the 6 Python tests
 python3 tests/test_zigbee_rejoin_recovery.py   # NOT in the runner — run it by hand
 pio run                                        # or: idf.py build
 ```

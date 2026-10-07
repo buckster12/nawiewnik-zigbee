@@ -20,7 +20,7 @@ guesses to be filled in later by inference — they need a measurement or a look
 ```
 18650 --[spring holder]--> TPS61023 boost --> 5 V rail --+--> ESP32-H2-Zero 5V pin -> onboard LDO -> 3V3
    |                                                      +--> ULN2003AN board -> 28BYJ-48
-   +--[300k]--+--[95k]--> GND        (divider midpoint -> GPIO4)
+   +--[95k]--+--[300k]--> GND        (divider midpoint -> GPIO4)
               |
             GPIO4
 ```
@@ -32,7 +32,7 @@ is a constant-power load, so a sagging input makes it draw more input current, w
 
 | Rail / source | Voltage | Consumers | Measured |
 |---|---:|---|---|
-| Cell | 3.0-4.2 V | TPS61023, sense divider | 3842 mV idle (old cell), 3975 mV idle (new), **3476 mV during a move** |
+| Cell | 3.0-4.2 V | TPS61023, sense divider | 3842 mV idle (old cell), 3975 mV idle (new), **3476 mV during a move** — see the divider note below |
 | 5 V boost output | 5 V | ESP32-H2-Zero, ULN2003AN | UNKNOWN — not measured under load |
 | Positive leg, holder+ to converter VIN | — | (wiring loss) | **10-11 mV idle, 260 mV during a move** |
 | 3V3 | 3.3 V | ESP32-H2 | UNKNOWN |
@@ -64,6 +64,20 @@ This is what collapses the rail. The converter sees a quarter volt less than the
 being a constant-power load it answers a lower input by drawing more current, which increases the
 drop across this very wire.
 
+**The divider was documented upside down until 2026-10-07.** Measured that day with a multimeter,
+cell in the holder: 3.99 V across the cell and **2.8 V from cell minus to GPIO4**, a ratio of 0.70.
+That matches 95k on top and 300k to ground (0.76), not the 300k/95k recorded earlier (0.24). The
+firmware assumed the old orientation at 2.5 dB attenuation, whose range ends near 1 V, so GPIO4 sat
+far above full scale and every firmware battery reading before that fix was the ADC's saturated
+ceiling, not the cell. Any cell voltage or percentage above that came from the firmware — including
+the 3838-3842 mV (51-53%) in `backlog/brownout-reset-on-motor-start.md` — is not a measurement.
+Which of the three figures in the rail table were taken with a multimeter rather than read from the
+firmware is not recorded.
+
+The measured ratio is ~8% below the nominal one, so the fixed firmware will still read low (2.8 V on
+the pin computes to ~3.69 V for a 3.99 V cell). Either the parts are off nominal or the meter loads
+the divider; measuring each resistor out of the breadboard would settle it before adding a correction.
+
 Note the sense divider returns to the cell's minus while the ADC measures against the MCU's ground.
 If motor return current shares a ground path with resistance, part of the apparent sag is a ground
 offset rather than a real cell droop. Both are the same class of fault; the location differs.
@@ -79,7 +93,7 @@ why `main/battery_monitor.c` uses `ADC_CHANNEL_3` for GPIO4.
 | Stepper phases A-D | 10, 11, 12, 13 | output | to ULN2003AN inputs |
 | Motor rail enable | 3 | output, push-pull | **destination UNKNOWN** — the TPS61023 `EN` pin is not used |
 | Reed / hall endstop | 2 | input, internal pull-up | other end to ground, active-low |
-| Battery sense | 4 | ADC1 ch3, 2.5 dB | 300k/95k divider across the cell |
+| Battery sense | 4 | ADC1 ch3, 12 dB | 95k top / 300k bottom divider across the cell |
 | Status LED | 8 | RMT | on-board WS2812 |
 | BOOT / calibration | 9 | input, pull-up | hold 3 s marks CLOSED; also a sleep wake source |
 

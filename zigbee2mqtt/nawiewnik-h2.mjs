@@ -8,6 +8,7 @@ export default {
     model: 'Nawiewnik-H2',
     vendor: 'SantaRumor',
     description: 'ESP32-H2 native Zigbee ventilation damper',
+    ota: true,
     extend: [m.windowCovering({
         controls: ['lift'],
         configureReporting: true,

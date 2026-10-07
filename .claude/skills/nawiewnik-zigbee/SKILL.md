@@ -105,8 +105,19 @@ An `UNSUPPORTED_ATTRIBUTE` on the speed attribute almost always means a manufact
 The Zigbee dataset lives in the **same `nvs` partition** as the motor calibration
 (`NAWIEWNIK_ZB_STORAGE_PARTITION "nvs"`). Erasing it costs pairing *and* calibration at once.
 
-- Routine update writes the app only, at **`0x10000`** (`idf.py app-flash`). Never `erase-flash`
-  unless the user asked for a factory reset, and say what it costs first.
+- Partitions: `nvs` 0x9000, `ota_0` 0x10000, `zb_fct` 0x170000, `otadata` 0x180000, `ota_1`
+  0x190000 (each app slot 0x160000). Before 2026-10-07 the slot at 0x10000 was `factory` and there
+  was no `otadata`; moving a board onto this table is a one-time wired flash of the app, `otadata`
+  and the partition table, with the table written **last** (see `docs/hermes-handoff/`).
+- Routine wired update writes the app only, at **`0x10000`** (`idf.py app-flash`) — but once a
+  wireless update has run, the board may be booting `ota_1`, and an app written to 0x10000 will
+  be ignored. Write `build/ota_data_initial.bin` to `0x180000` alongside it to select `ota_0`
+  again. Never `erase-flash` unless the user asked for a factory reset, and say what it costs first.
+- Wireless updates: bump `NAW_OTA_VERSION` (`main/ota_stream.h`, or `-DNAW_OTA_VERSION=` as the
+  `esp32-h2-ota-v2` env does), build, then wrap the app with `tools/package_ota.py --version N`.
+  The client rejects any image whose version is not strictly greater than the running one, or
+  whose manufacturer/image type is not `0x1234`/`1`. Untested on hardware: a 48-byte block size on
+  a sleepy end device may make a transfer very slow.
 - `naw_motor`: `position`, `calibrated`, `travel`, `speed`.
 - `naw_sys`: `sleep_zed` (sleepy migration) and `parent_fix` (= `PARENT_RECOVERY_VERSION`, now **2**).
 
@@ -134,6 +145,8 @@ reformatting will fail them even when behavior is identical.
 | `test_sleep_configuration.py` | sdkconfig sleep keys, console keys, `light_sleep_enable = false` |
 | `test_report_frame_control.py` | exactly one report command, its address/frame control, hourly interval |
 | `test_battery_divider.py` | 12 dB attenuation and the as-wired 95k/300k divider in the real conversion expression |
+| `test_ota_integration.py` | OTA callbacks wired into `main.c`; begin/feed/end/set-boot/abort present in `zigbee_ota.c` |
+| `test_ota_package.py` | `tools/package_ota.py` emits the 56-byte header and identity the client checks |
 | `test_zigbee_rejoin_recovery.py` | recovery signals, marker versioning, reset-before-retry order |
 
 When a change is deliberate, update the assertion **and** keep the comment explaining why the
@@ -144,7 +157,7 @@ a board.
 ## Verify
 
 ```sh
-bash tests/run_tests.sh                        # host C tests + 5 of the 6 Python tests
+bash tests/run_tests.sh                        # host C tests + 7 of the 8 Python tests
 python3 tests/test_zigbee_rejoin_recovery.py   # NOT in the runner — run it by hand
 pio run                                        # or: idf.py build
 ```

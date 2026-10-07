@@ -19,3 +19,8 @@ python3 "$ROOT/tests/test_report_frame_control.py"
 python3 "$ROOT/tests/test_sleep_configuration.py"
 python3 "$ROOT/tests/test_motor_power_sequence.py"
 python3 "$ROOT/tests/test_battery_divider.py"
+cc -std=c11 -Wall -Wextra -Werror -I"$ROOT/main" \
+  "$ROOT/tests/test_ota_stream.c" "$ROOT/main/ota_stream.c" -o "$ROOT/build-host/test_ota_stream"
+"$ROOT/build-host/test_ota_stream"
+python3 "$ROOT/tests/test_ota_integration.py"
+python3 "$ROOT/tests/test_ota_package.py"

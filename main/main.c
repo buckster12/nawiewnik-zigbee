@@ -19,6 +19,7 @@
 #include "ezbee/zcl/cluster/power_config.h"
 #include "ezbee/zcl/cluster/window_covering.h"
 
+#include "zigbee_ota.h"
 #include "battery_monitor.h"
 #include "motor_driver.h"
 #include "nawiewnik.h"
@@ -459,6 +460,12 @@ static void zigbee_action_handler(ezb_zcl_core_action_callback_id_t callback_id,
     case EZB_ZCL_CORE_WINDOW_COVERING_MOVEMENT_CB_ID:
         window_covering_command_handler((ezb_zcl_window_covering_movement_message_t *)message);
         break;
+    case EZB_ZCL_CORE_OTA_UPGRADE_CLIENT_PROGRESS_CB_ID:
+        zigbee_ota_progress(message);
+        break;
+    case EZB_ZCL_CORE_OTA_UPGRADE_QUERY_NEXT_IMAGE_RSP_CB_ID:
+        zigbee_ota_query(message);
+        break;
     case EZB_ZCL_CORE_DEFAULT_RSP_CB_ID:
         break;
     default:
@@ -515,8 +522,10 @@ static esp_err_t create_window_covering_endpoint(void)
     ESP_RETURN_ON_ERROR(ezb_af_endpoint_add_cluster_desc(endpoint, power), TAG,
                         "Power configuration cluster registration failed");
 
+    ESP_RETURN_ON_ERROR(zigbee_ota_add_cluster(endpoint), TAG, "OTA client registration failed");
     ESP_RETURN_ON_ERROR(ezb_af_device_add_endpoint_desc(device, endpoint), TAG, "Endpoint registration failed");
     ESP_RETURN_ON_ERROR(ezb_af_device_desc_register(device), TAG, "Device registration failed");
+    ESP_RETURN_ON_ERROR(ezb_zcl_ota_upgrade_set_download_block_size(NAWIEWNIK_ENDPOINT, 48), TAG, "OTA block size failed");
     ezb_zcl_core_action_handler_register(zigbee_action_handler);
     return ESP_OK;
 }

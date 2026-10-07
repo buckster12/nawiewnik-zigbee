@@ -14,10 +14,12 @@
 
 #define BATTERY_ADC_UNIT ADC_UNIT_1
 #define BATTERY_ADC_CHANNEL ADC_CHANNEL_3 /* GPIO4 on ESP32-H2 */
-#define BATTERY_ADC_ATTEN ADC_ATTEN_DB_2_5
+#define BATTERY_ADC_ATTEN ADC_ATTEN_DB_12
 #define BATTERY_SAMPLE_COUNT 64
-#define BATTERY_DIVIDER_TOP_OHM 300000U
-#define BATTERY_DIVIDER_BOTTOM_OHM 95000U
+/* Actual wiring: battery+ -- 95k -- GPIO4 -- 300k -- GND.
+ * A full 4.2V cell puts about 3.19V on GPIO4; use the calibrated 3.3V range. */
+#define BATTERY_DIVIDER_TOP_OHM 95000U
+#define BATTERY_DIVIDER_BOTTOM_OHM 300000U
 
 static const char *TAG = "battery";
 static adc_oneshot_unit_handle_t s_adc;
